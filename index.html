@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pawsome Dashboard - Dog CEO Explorer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-nav {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Skeleton loader shimmer effect */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        /* Aspect ratio container to prevent Layout Shift (CLS) */
+        .aspect-card {
+            aspect-ratio: 4 / 3;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Card Hover Animations */
+        .dog-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dog-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Pulse glow for primary buttons */
+        .glow-button:hover {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen antialiased">
+
+    <!-- Navigation Bar -->
+    <header class="sticky top-0 z-30 glass-nav transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 cursor-pointer" id="brandLogo">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-dog text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide text-white">PAWSOME</h1>
+                    <p class="text-xs text-slate-400 font-medium">Dog CEO 看板總覽</p>
+                </div>
+            </div>
+
+            <!-- Stats / Counter Header Badge -->
+            <div class="hidden sm:flex items-center gap-4 text-xs font-semibold">
+                <div class="px-3 py-1.5 rounded-full glass border border-slate-700/50 text-slate-300 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+                    <span>已載入照片：<strong id="loadedCounter" class="text-white">0</strong> 張</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Body Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        <!-- Filter & Control Panel -->
+        <section class="glass rounded-2xl p-4 sm:p-6 shadow-xl relative overflow-hidden">
+            <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                
+                <!-- Breed Dropdown & Search -->
+        <div class="flex-grow flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <label for="breedSelect" class="text-sm font-semibold text-slate-300 flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-filter text-brand-500"></i> 選擇狗狗品種：
+            </label>
+            <div class="relative flex-grow max-w-md">
+                <select id="breedSelect" class="w-full bg-slate-800/90 text-slate-200 text-sm rounded-xl px-4 py-3 pr-10 border border-slate-700/80 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 appearance-none cursor-pointer transition-all">
+                    <option value="random">🐶 所有品種 (隨機綜合)</option>
+                    <!-- Breeds populated dynamically -->
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                </div>
+            </div>
+        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (Refresh & Reset) -->
+                <div class="flex items-center gap-3">
+                    <button id="btnRefresh" class="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700/80 hover:border-slate-600 transition-all flex items-center justify-center gap-2 group">
+                        <i class="fa-solid fa-rotate transition-transform group-hover:rotate-180 duration-500"></i>
+                        <span>重新換一批</span>
+                    </button>
+                    <button id="btnClearFilter" title="重置為隨機綜合" class="hidden px-3 py-3 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-sm border border-slate-700/50 transition-all">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Error State Alert Container -->
+        <div id="errorAlert" class="hidden glass border-red-500/30 bg-red-950/20 rounded-2xl p-6 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-slate-200" id="errorTitle">無法取得狗狗照片</h3>
+                <p class="text-sm text-slate-400 mt-1" id="errorMessage">網路連線不穩定或伺服器暫時無回應，請再試一次。</p>
+            </div>
+            <button id="btnRetry" class="px-5 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium border border-red-500/30 transition-all inline-flex items-center gap-2">
+                <i class="fa-solid fa-arrows-rotate"></i> 重新嘗試請求
+            </button>
+        </div>
+
+        <!-- Dog Photos Grid -->
+        <section id="dogGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            <!-- Dynamic Content / Skeletons generated here -->
+        </section>
+
+        <!-- Empty State Container -->
+        <div id="emptyState" class="hidden glass rounded-2xl p-12 text-center space-y-3">
+            <i class="fa-solid fa-bone text-4xl text-slate-600"></i>
+            <h3 class="text-lg font-semibold text-slate-300">此品種目前沒有找到照片</h3>
+            <p class="text-sm text-slate-500 max-w-sm mx-auto">嘗試選擇其他品種，或是重置篩選探索所有狗狗照片。</p>
+        </div>
+
+        <!-- Load More CTA Section -->
+        <div class="flex justify-center pt-4 pb-12">
+            <button id="btnLoadMore" class="glow-button px-8 py-4 rounded-2xl bg-gradient-to-r from-brand-600 to-emerald-600 hover:from-brand-500 hover:to-emerald-500 text-white font-semibold text-sm shadow-lg shadow-brand-600/25 transition-all flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i id="loadMoreSpinner" class="fa-solid fa-spinner animate-spin hidden"></i>
+                <i id="loadMoreIcon" class="fa-solid fa-plus"></i>
+                <span id="loadMoreText">再載入 10 張狗狗</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Image Lightbox Modal -->
+    <div id="imageModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+        <!-- Backdrop Overlay -->
+        <div id="modalBackdrop" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md"></div>
+
+        <!-- Modal Dialog -->
+        <div class="relative glass rounded-3xl overflow-hidden max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-700/60 z-10 transform scale-95 transition-transform duration-300" id="modalDialog">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-paw text-brand-500 text-sm"></i>
+                    <h3 id="modalBreedTitle" class="font-bold text-slate-100 text-base capitalize">狗狗詳情照片</h3>
+                </div>
+                <button id="btnCloseModal" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-100 flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Image) -->
+            <div class="p-6 overflow-y-auto flex-grow flex items-center justify-center bg-slate-950/40">
+                <div class="relative w-full flex justify-center max-h-[65vh]">
+                    <img id="modalImage" src="" alt="Dog High Res" class="max-h-[65vh] w-auto max-w-full object-contain rounded-2xl shadow-xl">
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-slate-800 bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+                <div id="modalSubBreedInfo" class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium">資料來源: Dog CEO API</span>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <a id="btnDownload" href="#" target="_blank" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-center font-medium transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> 開啟原圖
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- Breed Translation Dictionary (繁體中文對照表) ---
+        const breedTranslations = {
+            'affenpinscher': '艾芬品犬 (猴面犬)',
+            'afghan': '阿富汗獵犬',
+            'african': '非洲野犬',
+            'airedale': '萬能梗',
+            'akita': '秋田犬',
+            'appenzeller': '阿彭策爾山犬',
+            'australian': '澳洲牧羊犬',
+            'basenji': '巴仙吉犬',
+            'beagle': '米格魯 (比格犬)',
+            'bluetick': '藍斑獵浣熊犬',
+            'borzoi': '俄羅斯獵狼犬',
+            'bouvier': '弗蘭德斯牧羊犬',
+            'boxer': '拳師犬',
+            'brabancon': '布拉邦公爵犬',
+            'briard': '伯瑞犬',
+            'buhund': '挪威布亨犬',
+            'bulldog': '鬥牛犬',
+            'bullterrier': '牛頭梗',
+            'cattledog': '澳洲牧牛犬',
+            'cavapoo': '卡瓦普犬',
+            'chihuahua': '吉娃娃',
+            'chow': '鬆獅犬',
+            'clumber': '克倫伯獵犬',
+            'cockapoo': '可卡蒲犬',
+            'collie': '柯利牧羊犬',
+            'coonhound': '浣熊獵犬',
+            'corgi': '柯基犬',
+            'cotondetulear': '羅威那棉花犬',
+            'dachshund': '臘腸犬',
+            'dalmatian': '大麥町 (斑點狗)',
+            'dane': '大丹犬',
+            'deerhound': '蘇格蘭獵鹿犬',
+            'dhole': '亞洲野犬 (豺)',
+            'dingo': '澳洲野犬',
+            'doberman': '杜賓犬',
+            'elkhound': '挪威獵鹿犬',
+            'entlebucher': '恩特雷布赫山犬',
+            'eskimo': '愛斯基摩犬',
+            'finnish': '芬蘭獵犬',
+            'frise': '比熊犬',
+            'germanshepherd': '德國牧羊犬',
+            'greyhound': '靈緹 (灰獵犬)',
+            'groenendael': '比利時格羅安達犬',
+            'havanese': '哈瓦那犬',
+            'hound': '獵犬',
+            'husky': '哈士奇 (雪橇犬)',
+            'keeshond': '凱斯犬',
+            'kelpie': '澳洲凱爾皮犬',
+            'komondor': '可蒙犬',
+            'kuvasz': '庫瓦茲犬',
+            'labradoodle': '拉布拉多貴賓犬',
+            'labrador': '拉布拉多犬',
+            'leonberg': '萊昂貝格犬',
+            'lhasa': '拉薩犬',
+            'malamute': '阿拉斯加雪橇犬',
+            'malinois': '比利時瑪利諾犬',
+            'maltese': '瑪爾濟斯',
+            'mastiff': '獒犬',
+            'mexicanhairless': '墨西哥無毛犬',
+            'mountain': '瑞士山地犬',
+            'newfoundland': '紐芬蘭犬',
+            'otterhound': '水獺獵犬',
+            'papillon': '蝴蝶犬',
+            'pekinese': '北京犬 (京巴)',
+            'pembroke': '彭布羅克柯基犬',
+            'pinscher': '迷你品犬',
+            'pitbull': '比特犬',
+            'pointer': '指示犬',
+            'pomeranian': '博美犬',
+            'poodle': '貴賓犬',
+            'pug': '巴哥犬',
+            'puggle': '米格魯貴賓混血犬',
+            'pyrenees': '大白熊犬',
+            'redbone': '紅骨獵浣熊犬',
+            'retriever': '尋回犬',
+            'ridgeback': '羅德西亞背脊犬',
+            'rottweiler': '羅威納犬',
+            'saluki': '薩路基獵犬',
+            'samoyed': '薩摩耶犬',
+            'schipperke': '舒比奇犬',
+            'schnauzer': '雪納瑞',
+            'segugio': '義大利尋血獵犬',
+            'setter': '塞特犬',
+            'sharpei': '沙皮犬',
+            'sheepdog': '牧羊犬',
+            'shiba': '柴犬',
+            'shihtzu': '西施犬',
+            'spaniel': '可卡獵犬',
+            'spitz': '尖嘴犬',
+            'springer': '史賓格犬',
+            'stbernard': '聖伯納犬',
+            'terrier': '梗犬',
+            'tervuren': '比利時特伏倫犬',
+            'vizsla': '維茲拉犬',
+            'waterdog': '水犬',
+            'weimaraner': '威瑪獵犬',
+            'whippet': '惠比特犬',
+            'wolfhound': '獵狼犬',
+
+            // 子品種翻譯前綴/形容詞
+            'sub': {
+                'golden': '黃金',
+                'border': '邊境',
+                'cardigan': '卡迪根',
+                'pembroke': '彭布羅克',
+                'boston': '波士頓',
+                'english': '英國',
+                'french': '法國',
+                'toy': '玩具',
+                'miniature': '迷你',
+                'standard': '標準',
+                'medium': '中型',
+                'giant': '巨型',
+                'shetland': '喜樂蒂',
+                'bernese': '伯恩山',
+                'swiss': '大瑞士',
+                'bichon': '捲毛',
+                'cocker': '可卡',
+                'japanese': '日本',
+                'irish': '愛爾蘭',
+                'scottish': '蘇格蘭',
+                'american': '美國',
+                'australian': '澳洲',
+                'german': '德國',
+                'tibetan': '西藏',
+                'yorkshire': '約克夏',
+                'westhighland': '西高地白',
+                'staffordshire': '斯塔福郡',
+                'blood': '尋血',
+                'basset': '巴吉度',
+                'ibizan': '伊比沙',
+                'plott': '普洛特',
+                'walker': '沃克'
+            }
+        };
+
+        // --- Application State ---
+        const state = {
+            selectedBreed: 'random',
+            fetchedImageUrls: new Set(),
+            isLoading: false,
+            batchSize: 10
+        };
+
+        // --- API Service ---
+        const DogAPI = {
+            baseUrl: 'https://dog.ceo/api',
+
+            async fetchAllBreeds() {
+                const res = await fetch(`${this.baseUrl}/breeds/list/all`);
+                if (!res.ok) throw new Error('無法載入品種清單');
+                const data = await res.json();
+                return data.message;
+            },
+
+            async fetchImages(breed = 'random', count = 10) {
+                let endpoint = '';
+                if (breed === 'random') {
+                    endpoint = `${this.baseUrl}/breeds/image/random/${count}`;
+                } else {
+                    endpoint = `${this.baseUrl}/breed/${breed}/images/random/${count}`;
+                }
+
+                const res = await fetch(endpoint);
+                if (!res.ok) throw new Error('無法從 Dog CEO 取得照片');
+                const data = await res.json();
+                
+                return Array.isArray(data.message) ? data.message : [data.message];
+            }
+        };
+
+        // --- Utility Helpers ---
+        const Utils = {
+            // 轉換英文品種與子品種為中文（附帶英文標示）
+            getBreedChineseLabel(mainBreed, subBreed = null) {
+                const mainEng = mainBreed.toLowerCase();
+                const mainTW = breedTranslations[mainEng] || (mainBreed.charAt(0).toUpperCase() + mainBreed.slice(1));
+
+                if (!subBreed) {
+                    return `${mainTW} (${mainBreed.charAt(0).toUpperCase() + mainBreed.slice(1)})`;
+                }
+
+                const subEng = subBreed.toLowerCase();
+                const subTW = breedTranslations.sub[subEng] || (subBreed.charAt(0).toUpperCase() + subBreed.slice(1));
+                const fullEng = `${subBreed.charAt(0).toUpperCase() + subBreed.slice(1)} ${mainBreed.charAt(0).toUpperCase() + mainBreed.slice(1)}`;
+
+                // 特殊中文組合邏輯
+                if (mainEng === 'retriever' && subEng === 'golden') return `黃金獵犬 (${fullEng})`;
+                if (mainEng === 'collie' && subEng === 'border') return `邊境牧羊犬 (${fullEng})`;
+                if (mainEng === 'corgi') return `${subTW}柯基犬 (${fullEng})`;
+
+                return `${subTW}${mainTW} (${fullEng})`;
+            },
+
+            // 從圖片 URL 解析品種並回傳中文名稱
+            extractBreedFromUrl(url) {
+                try {
+                    const match = url.match(/\/breeds\/([^\/]+)\//);
+                    if (!match) return '可愛狗狗';
+                    
+                    const rawBreed = match[1];
+                    const parts = rawBreed.split('-');
+                    
+                    if (parts.length > 1) {
+                        return this.getBreedChineseLabel(parts[0], parts[1]);
+                    }
+                    
+                    return this.getBreedChineseLabel(parts[0]);
+                } catch (e) {
+                    return '可愛狗狗';
+                }
+            },
+
+            getFallbackImage() {
+                return 'https://placehold.co/600x450/1e293b/94a3b8?text=🐶+照片載入失敗';
+            }
+        };
+
+        // --- UI Controller & Rendering ---
+        const UI = {
+            elements: {
+                breedSelect: document.getElementById('breedSelect'),
+                btnRefresh: document.getElementById('btnRefresh'),
+                btnClearFilter: document.getElementById('btnClearFilter'),
+                btnLoadMore: document.getElementById('btnLoadMore'),
+                loadMoreSpinner: document.getElementById('loadMoreSpinner'),
+                loadMoreIcon: document.getElementById('loadMoreIcon'),
+                loadMoreText: document.getElementById('loadMoreText'),
+                dogGrid: document.getElementById('dogGrid'),
+                errorAlert: document.getElementById('errorAlert'),
+                errorTitle: document.getElementById('errorTitle'),
+                errorMessage: document.getElementById('errorMessage'),
+                btnRetry: document.getElementById('btnRetry'),
+                emptyState: document.getElementById('emptyState'),
+                loadedCounter: document.getElementById('loadedCounter'),
+                imageModal: document.getElementById('imageModal'),
+                modalBackdrop: document.getElementById('modalBackdrop'),
+                modalDialog: document.getElementById('modalDialog'),
+                modalImage: document.getElementById('modalImage'),
+                modalBreedTitle: document.getElementById('modalBreedTitle'),
+                btnCloseModal: document.getElementById('btnCloseModal'),
+                btnDownload: document.getElementById('btnDownload')
+            },
+
+            renderSkeletons(count = 10, append = false) {
+                if (!append) {
+                    this.elements.dogGrid.innerHTML = '';
+                }
+
+                const skeletonHTML = Array.from({ length: count }).map(() => `
+                    <div class="dog-card glass rounded-2xl overflow-hidden border border-slate-800 skeleton-card">
+                        <div class="aspect-card skeleton"></div>
+                        <div class="p-3.5 space-y-2">
+                            <div class="h-4 bg-slate-700/50 rounded-md w-2/3 skeleton"></div>
+                            <div class="h-3 bg-slate-800/50 rounded-md w-1/3 skeleton"></div>
+                        </div>
+                    </div>
+                `).join('');
+
+                this.elements.dogGrid.insertAdjacentHTML('beforeend', skeletonHTML);
+            },
+
+            removeSkeletons() {
+                const skeletons = this.elements.dogGrid.querySelectorAll('.skeleton-card');
+                skeletons.forEach(el => el.remove());
+            },
+
+            // 動態填入中文品種下拉選單
+            populateBreedsDropdown(breedsObj) {
+                const select = this.elements.breedSelect;
+                const fragment = document.createDocumentFragment();
+
+                Object.keys(breedsObj).sort().forEach(breed => {
+                    const subBreeds = breedsObj[breed];
+                    
+                    if (subBreeds.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.value = breed;
+                        opt.textContent = `🐾 ${Utils.getBreedChineseLabel(breed)}`;
+                        fragment.appendChild(opt);
+                    } else {
+                        // 主品種選項
+                        const mainOpt = document.createElement('option');
+                        mainOpt.value = breed;
+                        mainOpt.textContent = `🐾 ${Utils.getBreedChineseLabel(breed)} - 全部子品種`;
+                        fragment.appendChild(mainOpt);
+
+                        // 子品種選項
+                        subBreeds.forEach(sub => {
+                            const subOpt = document.createElement('option');
+                            subOpt.value = `${breed}/${sub}`;
+                            subOpt.textContent = `└ ${Utils.getBreedChineseLabel(breed, sub)}`;
+                            fragment.appendChild(subOpt);
+                        });
+                    }
+                });
+
+                select.appendChild(fragment);
+            },
+
+            renderDogCards(urls, append = false) {
+                this.removeSkeletons();
+
+                if (!append) {
+                    this.elements.dogGrid.innerHTML = '';
+                }
+
+                if (urls.length === 0 && this.elements.dogGrid.children.length === 0) {
+                    this.elements.emptyState.classList.remove('hidden');
+                    return;
+                } else {
+                    this.elements.emptyState.classList.add('hidden');
+                }
+
+                const fragment = document.createDocumentFragment();
+
+                urls.forEach(url => {
+                    const breedName = Utils.extractBreedFromUrl(url);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'dog-card glass rounded-2xl overflow-hidden border border-slate-800/80 group cursor-pointer flex flex-col justify-between';
+                    
+                    card.innerHTML = `
+                        <div class="aspect-card bg-slate-900 relative overflow-hidden">
+                            <img 
+                                src="${url}" 
+                                alt="${breedName}" 
+                                loading="lazy"
+                                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-0 transition-opacity duration-300"
+                                onload="this.classList.remove('opacity-0')"
+                                onerror="this.onerror=null; this.src='${Utils.getFallbackImage()}'; this.classList.remove('opacity-0');"
+                            />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                                <span class="text-xs font-medium text-white flex items-center gap-1.5">
+                                    <i class="fa-solid fa-magnifying-glass-plus text-brand-400"></i> 點擊查看大圖
+                                </span>
+                            </div>
+                        </div>
+                        <div class="p-3.5 flex items-center justify-between gap-2 border-t border-slate-800/60 bg-slate-900/40">
+                            <span class="text-xs font-semibold text-slate-200 truncate" title="${breedName}">
+                                ${breedName}
+                            </span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/50">
+                                Dog CEO
+                            </span>
+                        </div>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        this.openModal(url, breedName);
+                    });
+
+                    fragment.appendChild(card);
+                });
+
+                this.elements.dogGrid.appendChild(fragment);
+                this.updateCounter();
+            },
+
+            updateCounter() {
+                this.elements.loadedCounter.textContent = state.fetchedImageUrls.size;
+            },
+
+            setLoading(loading) {
+                state.isLoading = loading;
+                const { btnLoadMore, loadMoreSpinner, loadMoreIcon, loadMoreText } = this.elements;
+
+                if (loading) {
+                    btnLoadMore.disabled = true;
+                    loadMoreSpinner.classList.remove('hidden');
+                    loadMoreIcon.classList.add('hidden');
+                    loadMoreText.textContent = '正在獲取照片...';
+                } else {
+                    btnLoadMore.disabled = false;
+                    loadMoreSpinner.classList.add('hidden');
+                    loadMoreIcon.classList.remove('hidden');
+                    loadMoreText.textContent = `再載入 ${state.batchSize} 張狗狗`;
+                }
+            },
+
+            showError(message) {
+                this.removeSkeletons();
+                this.elements.errorMessage.textContent = message || '無法連線至 Dog CEO API。';
+                this.elements.errorAlert.classList.remove('hidden');
+            },
+
+            hideError() {
+                this.elements.errorAlert.classList.add('hidden');
+            },
+
+            openModal(url, breedName) {
+                this.elements.modalImage.src = url;
+                this.elements.modalBreedTitle.textContent = breedName;
+                this.elements.btnDownload.href = url;
+
+                this.elements.imageModal.classList.remove('pointer-events-none');
+                this.elements.imageModal.classList.remove('opacity-0');
+                this.elements.modalDialog.classList.remove('scale-95');
+                this.elements.modalDialog.classList.add('scale-100');
+                
+                document.body.style.overflow = 'hidden';
+            },
+
+            closeModal() {
+                this.elements.imageModal.classList.add('opacity-0');
+                this.elements.imageModal.classList.add('pointer-events-none');
+                this.elements.modalDialog.classList.remove('scale-100');
+                this.elements.modalDialog.classList.add('scale-95');
+                
+                document.body.style.overflow = '';
+            }
+        };
+
+        // --- App Controller & Main Execution ---
+        const App = {
+            async init() {
+                this.bindEvents();
+                await this.loadBreedsCatalog();
+                await this.fetchDogBatch({ reset: true });
+            },
+
+            bindEvents() {
+                // 切換品種下拉選單
+                UI.elements.breedSelect.addEventListener('change', (e) => {
+                    state.selectedBreed = e.target.value;
+                    if (state.selectedBreed !== 'random') {
+                        UI.elements.btnClearFilter.classList.remove('hidden');
+                    } else {
+                        UI.elements.btnClearFilter.classList.add('hidden');
+                    }
+                    this.fetchDogBatch({ reset: true });
+                });
+
+                // 重置篩選按鈕
+                UI.elements.btnClearFilter.addEventListener('click', () => {
+                    UI.elements.breedSelect.value = 'random';
+                    state.selectedBreed = 'random';
+                    UI.elements.btnClearFilter.classList.add('hidden');
+                    this.fetchDogBatch({ reset: true });
+                });
+
+                // 刷新這批照片
+                UI.elements.btnRefresh.addEventListener('click', () => {
+                    this.fetchDogBatch({ reset: true });
+                });
+
+                // 再載入 10 張
+                UI.elements.btnLoadMore.addEventListener('click', () => {
+                    if (!state.isLoading) {
+                        this.fetchDogBatch({ reset: false });
+                    }
+                });
+
+                // 錯誤重試按鈕
+                UI.elements.btnRetry.addEventListener('click', () => {
+                    this.fetchDogBatch({ reset: true });
+                });
+
+                // 點擊 Logo 重置
+                document.getElementById('brandLogo').addEventListener('click', () => {
+                    UI.elements.breedSelect.value = 'random';
+                    state.selectedBreed = 'random';
+                    UI.elements.btnClearFilter.classList.add('hidden');
+                    this.fetchDogBatch({ reset: true });
+                });
+
+                // Modal 關閉事件
+                UI.elements.btnCloseModal.addEventListener('click', () => UI.closeModal());
+                UI.elements.modalBackdrop.addEventListener('click', () => UI.closeModal());
+
+                // 按 Escape 鍵關閉 Modal
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        UI.closeModal();
+                    }
+                });
+            },
+
+            // 載入全品種目錄
+            async loadBreedsCatalog() {
+                try {
+                    const breeds = await DogAPI.fetchAllBreeds();
+                    UI.populateBreedsDropdown(breeds);
+                } catch (err) {
+                    console.warn('無法取得品種清單，切換為預設隨機模式。', err);
+                }
+            },
+
+            // 批次取得狗狗照片（帶 Set 去重機制）
+            async fetchDogBatch({ reset = false }) {
+                if (reset) {
+                    state.fetchedImageUrls.clear();
+                    UI.elements.dogGrid.innerHTML = '';
+                    UI.hideError();
+                }
+
+                UI.setLoading(true);
+                UI.renderSkeletons(state.batchSize, !reset);
+
+                try {
+                    const rawUrls = await DogAPI.fetchImages(state.selectedBreed, state.batchSize);
+                    
+                    // 利用 Set 防重複，過濾重複 URL
+                    const newUniqueUrls = [];
+                    rawUrls.forEach(url => {
+                        if (!state.fetchedImageUrls.has(url)) {
+                            state.fetchedImageUrls.add(url);
+                            newUniqueUrls.push(url);
+                        }
+                    });
+
+                    UI.hideError();
+                    UI.renderDogCards(newUniqueUrls, !reset);
+
+                } catch (error) {
+                    console.error('API 錯誤:', error);
+                    UI.showError(error.message);
+                } finally {
+                    UI.setLoading(false);
+                }
+            }
+        };
+
+        // DOM 載入後啟動應用程式
+        window.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+</body>
+</html>
